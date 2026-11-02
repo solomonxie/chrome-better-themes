@@ -1,0 +1,67 @@
+{
+  "manifest_version": 3,
+  "name": "Better Themes",
+  "version": "0.1.0",
+  "description": "Calm, focused tweaks for day-to-day work sites. Starts with Jira.",
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "https://*.atlassian.net/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Better Themes",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "commands": {
+    "cycle-theme": {
+      "suggested_key": {
+        "default": "Alt+Shift+T"
+      },
+      "description": "Cycle theme on this site"
+    },
+    "toggle-original": {
+      "suggested_key": {
+        "default": "Alt+Shift+O"
+      },
+      "description": "Toggle between theme and original"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.atlassian.net/*"
+      ],
+      "js": [
+        "core/themes.js",
+        "sites/jira/jira.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "sites/jira/jira.css"
+      ],
+      "matches": [
+        "https://*.atlassian.net/*"
+      ]
+    }
+  ]
+}
