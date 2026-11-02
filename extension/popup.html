@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Better Themes</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header class="head">
+    <span class="mark">Better Themes</span>
+    <span class="site" id="site"></span>
+  </header>
+
+  <main id="main" hidden>
+    <p class="note" id="note" hidden>Open an issue to see the theme</p>
+
+    <div class="toggle-row">
+      <span id="toggle-label">Theme</span>
+      <button class="switch" id="toggle" role="switch" aria-checked="false" aria-labelledby="toggle-label">
+        <span class="knob"></span>
+      </button>
+    </div>
+
+    <ul class="list" id="list" role="radiogroup" aria-label="Theme"></ul>
+  </main>
+
+  <section class="empty" id="empty" hidden>
+    <p class="empty-title">Nothing to restyle here</p>
+    <p class="empty-sub">Works on Jira (*.atlassian.net)</p>
+  </section>
+
+  <footer class="foot">Alt+Shift+T cycle · Alt+Shift+O original</footer>
+
+  <script src="popup.js"></script>
+</body>
+</html>
