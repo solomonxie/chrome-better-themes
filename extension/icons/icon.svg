@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <title>Better Themes</title>
+  <defs>
+    <!-- open gap at upper right, like the lift of a brush -->
+    <mask id="gap">
+      <rect width="128" height="128" fill="#fff"/>
+      <path d="M64 64 L128 0 L128 46 Z" fill="#000"/>
+    </mask>
+  </defs>
+  <!-- soft neutral rounded square -->
+  <rect x="4" y="4" width="120" height="120" rx="28" fill="#EFEBE4"/>
+  <!-- enso: offset circles give a brush stroke that swells at lower left and thins toward the gap -->
+  <path mask="url(#gap)" fill="#2E3236" fill-rule="evenodd"
+        d="M64 20 a44 44 0 1 1 0 88 a44 44 0 1 1 0 -88 Z
+           M67 26 a36 36 0 1 0 0 72 a36 36 0 1 0 0 -72 Z"/>
+  <!-- half-filled disc: theme switching -->
+  <circle cx="64" cy="64" r="15.5" fill="none" stroke="#2E3236" stroke-width="3"/>
+  <path d="M64 47 A17 17 0 0 0 64 81 Z" fill="#2E3236"/>
+</svg>
