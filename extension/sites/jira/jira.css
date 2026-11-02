@@ -1,0 +1,119 @@
+/* Injected into Jira's page only while the "focus" theme is on (html[data-bt-jira]). */
+
+/* The left sidebar is collapsed by jira.js through Jira's own button, not here. */
+
+/* Right details pane and its resize handle. */
+html[data-bt-jira]:not([data-bt-show-right]) [data-testid='issue.views.issue-details.issue-layout.container-right'],
+html[data-bt-jira]:not([data-bt-show-right]) [data-testid='flex-resizer.ui.handle.resizer'] {
+  display: none !important;
+}
+html[data-bt-jira]:not([data-bt-show-right]) [data-testid='issue.views.issue-details.issue-layout.container-left'] {
+  flex: 1 1 auto !important;
+  max-width: none !important;
+  width: auto !important;
+}
+
+/* Empty "Linked work items" prompt and the "Agents" (AI start work) block.
+   The prompt only shows while nothing is linked; real linked items still show. */
+html[data-bt-jira] div:has(> [data-testid='issue-view-base.content.add-work-items.linked-items-prompt.container']),
+html[data-bt-jira] div:has(> [data-testid='ai-agent-sessions.title-container']) {
+  display: none !important;
+}
+
+/* Rovo (Atlassian AI): the "Ask Rovo" popup on text selection, the top-bar
+   button and the chat button in the bottom-right corner. */
+html[data-bt-jira] [data-testid^='highlight-actions.ui.target.container'],
+html[data-bt-jira] [data-testid='atlassian-navigation.ui.conversation-assistant.app-navigation-ai-mate'],
+html[data-bt-jira] [data-spotlight-target='rovo-chat-ask-rovo-button'],
+html[data-bt-jira] [data-spotlight-target='rovo-ai-button'],
+html[data-bt-jira] [data-testid='layout-controller.ui.bottom-right-corner.container.styled-container']:has([data-spotlight-target='rovo-ai-button']) {
+  display: none !important;
+}
+
+/* Description: reads like a page, not an input box. Only Jira's wrapper layers
+   lose their hover background; the content keeps its own (code, tables). */
+html[data-bt-jira] [data-testid='issue.views.field.rich-text.description'],
+html[data-bt-jira] [data-testid='issue.views.field.rich-text.description'] *:not(.ak-renderer-document, .ak-renderer-document *) {
+  background-color: transparent !important;
+  box-shadow: none !important;
+  cursor: auto !important;
+}
+/* The invisible "Edit Description" button that covers the text. */
+html[data-bt-jira] [data-testid='issue.views.field.rich-text.description'] button[aria-label^='Edit Description'] {
+  display: none !important;
+}
+
+/* Title: plain heading, no hover box, no hidden edit button. */
+html[data-bt-jira] [data-testid='issue-field-summary.ui.issue-field-summary-inline-edit--container'] * {
+  background-color: transparent !important;
+  box-shadow: none !important;
+  cursor: auto !important;
+}
+html[data-bt-jira] [data-testid='issue-field-summary.ui.issue-field-summary-inline-edit--container'] button[aria-label$='Summary, edit'] {
+  display: none !important;
+}
+html[data-bt-jira] [data-testid='issue.views.issue-base.foundation.summary.heading'] {
+  cursor: text !important;
+}
+
+/* Work item tables (subtasks, linked items): read-only. Nothing reacts to the
+   mouse except the issue key and summary links. */
+html[data-bt-jira] [data-vc='issue-table-main-container'] tbody,
+html[data-bt-jira] [data-vc='issue-table-main-container'] tbody * {
+  pointer-events: none !important;
+}
+html[data-bt-jira] [data-vc='issue-table-main-container'] tbody a[href],
+html[data-bt-jira] [data-vc='issue-table-main-container'] tbody a[href] * {
+  pointer-events: auto !important;
+}
+html[data-bt-jira] [data-testid='native-issue-table.ui.issue-row'],
+html[data-bt-jira] [data-testid='native-issue-table.ui.issue-row'] > *,
+html[data-bt-jira] [data-testid='native-issue-table.ui.issue-row'] [data-testid='issue-field-inline-edit-read-view-container.ui.container'] {
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+/* Hover-only edit pencils, copy-link buttons, drag handles and status chevrons. */
+html[data-bt-jira] [data-vc='issue-table-main-container'] [data-vc='inline-edit-lite-edit-button'],
+html[data-bt-jira] [data-vc='issue-table-main-container'] [data-testid='native-issue-table.common.ui.issue-cells.issue-key.action-container'] button,
+html[data-bt-jira] [data-vc='issue-table-main-container'] [data-testid$='--chevron'],
+html[data-bt-jira] [data-testid='native-issue-table.ui.issue-row'] [draggable='true']:not(a),
+html[data-bt-jira] [data-vc='issue-table-main-container'] [data-component-selector*='drag-handle'] {
+  display: none !important;
+}
+/* Status lozenge: plain label, not a button. */
+html[data-bt-jira] [data-vc='issue-table-main-container'] [data-testid^='issue.fields.status.common.ui.status-lozenge'] {
+  cursor: default !important;
+}
+/* Column resizing and the panel's "+ Create subtask" / "..." actions. */
+html[data-bt-jira] [data-vc='native-issue-table-ui-resize-handle'],
+html[data-bt-jira] [data-testid='issue-view-common-views.button.icon-button.Create subtask'],
+html[data-bt-jira] [data-testid='issue-view-child-issues-panel.ui.child-issues-limit-panel.heading.meatballs.dropdown.trigger-button'] {
+  display: none !important;
+}
+
+/* Edge tab to bring the details pane back. */
+#bt-jira-peek {
+  position: fixed;
+  top: 50%;
+  z-index: 2147483000;
+  right: 0;
+  width: 14px;
+  height: 44px;
+  margin-top: -22px;
+  padding: 0;
+  border: 1px solid rgba(9, 30, 66, 0.14);
+  border-right: 0;
+  border-radius: 6px 0 0 6px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #626f86;
+  font: 14px/1 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  cursor: pointer;
+  opacity: 0.35;
+  transition: opacity 0.15s;
+}
+#bt-jira-peek:hover,
+#bt-jira-peek:focus-visible { opacity: 1; }
+
+@media (prefers-color-scheme: dark) {
+  #bt-jira-peek { background: rgba(29, 33, 37, 0.9); color: #9fadbc; border-color: rgba(255, 255, 255, 0.14); }
+}
