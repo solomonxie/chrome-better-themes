@@ -4,6 +4,7 @@
 //   - title and description are read-only: clicking them does not open the editor
 //   - work item tables (subtasks, linked items) are read-only: no inline edit,
 //     no status change, no drag to reorder; the issue links still open
+//   - the comment editor is always open, with its Save / Cancel buttons
 //   - title and description have no hover highlight
 // Jira's own markup is targeted only through data-testid hooks, which are
 // more stable than its generated class names.
@@ -18,8 +19,12 @@
     '[data-vc="issue-table-main-container"]',
   ].join(',');
   const SIDEBAR_BTN = '[data-testid="page-layout.top-nav"] button';
+  const COMMENT_PLACEHOLDER = '[data-testid="canned-comments.common.ui.comment-text-area-placeholder.textarea"]';
   let mounted = false;
   let collapsedByUs = false;
+  let observer = null;
+  let commentOpens = [];
+  let keepCommentFocus = false;
 
   function isIssuePage() {
     if (/\/browse\/[A-Z][A-Z0-9_]+-\d+/.test(location.pathname)) return true;
@@ -59,6 +64,61 @@
     if (tries > 0) setTimeout(() => collapseSidebar(tries - 1), 250);
   }
 
+  // Remember where every scrolled ancestor is, so opening the editor
+  // (which focuses it, and Chrome then scrolls to it) does not move the page.
+  function scrollPositions(node) {
+    const list = [];
+    for (let el = node; el; el = el.parentElement) {
+      if (el.scrollTop) list.push([el, el.scrollTop]);
+    }
+    const page = document.scrollingElement;
+    if (page) list.push([page, page.scrollTop]);
+    return list;
+  }
+
+  // Jira shows "Add a comment…" as a button that turns into the editor on click.
+  // Press it for the user whenever it appears (on load, after Save or Cancel).
+  function openCommentBox() {
+    if (!mounted) return;
+    const btn = document.querySelector(COMMENT_PLACEHOLDER);
+    if (!btn) return;
+    // If Jira keeps closing it straight away, stop rather than flicker.
+    const now = Date.now();
+    commentOpens = commentOpens.filter((t) => now - t < 10000);
+    if (commentOpens.length >= 4) return;
+    commentOpens.push(now);
+
+    const box = btn.closest('[data-testid="issue.activity.comment"]') || btn.parentElement;
+    const scrolls = scrollPositions(btn);
+    const focused = document.activeElement;
+    btn.click();
+    const settle = () => {
+      for (const [el, top] of scrolls) el.scrollTop = top;
+      const active = document.activeElement;
+      if (keepCommentFocus || !active || !box.contains(active) || active === focused) return;
+      active.blur();
+      // An empty editor that closes on blur would reopen in a loop; keep focus next time.
+      setTimeout(() => {
+        if (document.querySelector(COMMENT_PLACEHOLDER)) keepCommentFocus = true;
+      }, 300);
+    };
+    requestAnimationFrame(() => requestAnimationFrame(settle));
+    setTimeout(settle, 250);
+  }
+
+  function watchPage() {
+    let queued = false;
+    observer = new MutationObserver(() => {
+      if (queued) return;
+      queued = true;
+      requestAnimationFrame(() => {
+        queued = false;
+        openCommentBox();
+      });
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+  }
+
   // A small tab on the right edge that shows the hidden details pane while toggled.
   function buildPeek() {
     const btn = document.createElement('button');
@@ -89,12 +149,17 @@
     }
     if (!document.getElementById(PEEK_ID)) document.body.append(buildPeek());
     collapseSidebar();
+    if (!observer) watchPage();
+    openCommentBox();
   }
 
   function unmount() {
     if (mounted && collapsedByUs) sidebarButton('Expand sidebar')?.click();
     collapsedByUs = false;
     mounted = false;
+    observer?.disconnect();
+    observer = null;
+    commentOpens = [];
     delete ROOT.dataset.btJira;
     delete ROOT.dataset.btShowRight;
     for (const id of [CSS_ID, PEEK_ID]) document.getElementById(id)?.remove();

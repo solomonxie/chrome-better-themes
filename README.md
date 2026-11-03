@@ -12,6 +12,7 @@ dropdown switches between themes, or back to the site as it ships.
   - the title and the description have no hover highlight
   - subtask and linked item tables are read-only: no hover, inline edit, status change or drag to reorder; issue links still open
   - the empty "Linked work items" prompt and the "Agents" (Start work) block are removed
+  - the comment editor is open from the start, with its Save / Cancel buttons, instead of a click-to-edit placeholder
   - Rovo is removed: the "Ask Rovo" popup on text selection, the top-bar button and the chat button
 
 ## Themes
