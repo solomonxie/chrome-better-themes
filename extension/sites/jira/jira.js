@@ -5,7 +5,6 @@
 //     an "Edit" button next to the Description heading opens Jira's own editor
 //   - work item tables (subtasks, linked items) are read-only: no inline edit,
 //     no status change, no drag to reorder; the issue links still open
-//   - the comment editor is always open, with its Save / Cancel buttons
 //   - a plain click on a link to another issue opens it in this tab, never a new one
 //   - title and description have no hover highlight
 // Jira's own markup is targeted only through data-testid hooks, which are
@@ -26,15 +25,10 @@
   const DESCRIPTION = '[data-testid="issue.views.field.rich-text.description"]';
   // Jira's invisible button over the description text (hidden by jira.css); clicking it opens the editor.
   const DESCRIPTION_EDIT = 'button[aria-label^="Edit Description"]';
-  const COMMENT_PLACEHOLDER = '[data-testid="canned-comments.common.ui.comment-text-area-placeholder.textarea"]';
   let mounted = false;
   let collapsedByUs = false;
   let observer = null;
-  let commentOpens = [];
-  let keepCommentFocus = false;
   let editing = false;
-  // When the Edit button last opened the description editor (0: not since it closed).
-  let descriptionOpenedAt = 0;
 
   function isIssuePage() {
     if (/\/browse\/[A-Z][A-Z0-9_]+-\d+/.test(location.pathname)) return true;
@@ -76,60 +70,6 @@
     if (tries > 0) setTimeout(() => collapseSidebar(tries - 1), 250);
   }
 
-  // Remember where every scrolled ancestor is, so opening the editor
-  // (which focuses it, and Chrome then scrolls to it) does not move the page.
-  function scrollPositions(node) {
-    const list = [];
-    for (let el = node; el; el = el.parentElement) {
-      if (el.scrollTop) list.push([el, el.scrollTop]);
-    }
-    const page = document.scrollingElement;
-    if (page) list.push([page, page.scrollTop]);
-    return list;
-  }
-
-  // Jira shows "Add a comment…" as a button that turns into the editor on click.
-  // Press it for the user whenever it appears (on load, after Save or Cancel).
-  function openCommentBox() {
-    if (!mounted) return;
-    const btn = document.querySelector(COMMENT_PLACEHOLDER);
-    if (!btn) return;
-    // Jira keeps one editor open: opening the comment box would close the description editor.
-    if (descriptionEditing()) return;
-    // If Jira keeps closing it straight away, stop rather than flicker.
-    const now = Date.now();
-    commentOpens = commentOpens.filter((t) => now - t < 10000);
-    if (commentOpens.length >= 4) return;
-    commentOpens.push(now);
-
-    const box = btn.closest('[data-testid="issue.activity.comment"]') || btn.parentElement;
-    const scrolls = scrollPositions(btn);
-    const focused = document.activeElement;
-    btn.click();
-    const settle = () => {
-      for (const [el, top] of scrolls) el.scrollTop = top;
-      const active = document.activeElement;
-      if (keepCommentFocus || !active || !box.contains(active) || active === focused) return;
-      active.blur();
-      // An empty editor that closes on blur would reopen in a loop; keep focus next time.
-      setTimeout(() => {
-        if (document.querySelector(COMMENT_PLACEHOLDER)) keepCommentFocus = true;
-      }, 300);
-    };
-    requestAnimationFrame(() => requestAnimationFrame(settle));
-    setTimeout(settle, 250);
-  }
-
-  // From the Edit button's click until Jira shows the read view again (Save or Cancel). Jira's own
-  // edit button only exists in the read view; the first seconds cover the editor still loading.
-  function descriptionEditing() {
-    if (!descriptionOpenedAt) return false;
-    if (Date.now() - descriptionOpenedAt < 3000) return true;
-    if (!document.querySelector(`${DESCRIPTION} ${DESCRIPTION_EDIT}`)) return true;
-    descriptionOpenedAt = 0;
-    return false;
-  }
-
   // "Edit" next to the Description heading: presses Jira's own (hidden) edit button, which
   // opens the same editor a click on the text opens without this theme. Hidden while it's open.
   function syncEditButton() {
@@ -158,7 +98,6 @@
         event.stopPropagation();
         const target = document.querySelector(`${DESCRIPTION} ${DESCRIPTION_EDIT}`);
         if (!target) return;
-        descriptionOpenedAt = Date.now();
         editing = true;
         try {
           target.click();
@@ -177,7 +116,6 @@
       queued = true;
       requestAnimationFrame(() => {
         queued = false;
-        openCommentBox();
         syncEditButton();
       });
     });
@@ -215,7 +153,6 @@
     if (!document.getElementById(PEEK_ID)) document.body.append(buildPeek());
     collapseSidebar();
     if (!observer) watchPage();
-    openCommentBox();
     syncEditButton();
   }
 
@@ -225,7 +162,6 @@
     mounted = false;
     observer?.disconnect();
     observer = null;
-    commentOpens = [];
     delete ROOT.dataset.btJira;
     delete ROOT.dataset.btShowRight;
     for (const id of [CSS_ID, PEEK_ID, EDIT_ID]) document.getElementById(id)?.remove();
