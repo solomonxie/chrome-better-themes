@@ -14,6 +14,11 @@
 
   const key = (site) => `theme:${site}`;
 
+  // Reloading or updating the extension orphans the script already running in open tabs: its
+  // chrome.* calls then throw "Extension context invalidated". The page keeps the theme as it
+  // is; a reload of the tab picks up the new script.
+  const alive = () => Boolean(chrome.runtime?.id);
+
   const ids = (mod) => mod.themes.map((t) => t.id);
 
   // Falls back to the module's first theme when nothing (or a retired id) is stored.
@@ -29,7 +34,14 @@
   }
 
   async function apply(mod) {
-    const theme = await getTheme(mod);
+    if (!alive()) return;
+    let theme;
+    try {
+      theme = await getTheme(mod);
+    } catch (error) {
+      if (!alive()) return;
+      throw error;
+    }
     if (theme === 'original' || !mod.isActive()) {
       mod.unmount();
       delete document.documentElement.dataset.btTheme;
@@ -56,7 +68,11 @@
   });
 
   // Single-page apps change the URL without a reload.
-  setInterval(() => {
+  const watcher = setInterval(() => {
+    if (!alive()) {
+      clearInterval(watcher);
+      return;
+    }
     if (location.href === lastHref) return;
     lastHref = location.href;
     modules.forEach(apply);
