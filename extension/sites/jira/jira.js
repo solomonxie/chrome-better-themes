@@ -1,10 +1,12 @@
 // Jira issue page, kept as Jira draws it, with a few calm tweaks (theme "focus"):
 //   - left sidebar collapsed once with Jira's own button, which keeps working
 //   - right details pane hidden (a small tab on the right edge brings it back)
-//   - title and description are read-only: clicking them does not open the editor
+//   - title and description are read-only: clicking them does not open the editor;
+//     an "Edit" button next to the Description heading opens Jira's own editor
 //   - work item tables (subtasks, linked items) are read-only: no inline edit,
 //     no status change, no drag to reorder; the issue links still open
 //   - the comment editor is always open, with its Save / Cancel buttons
+//   - a plain click on a link to another issue opens it in this tab, never a new one
 //   - title and description have no hover highlight
 // Jira's own markup is targeted only through data-testid hooks, which are
 // more stable than its generated class names.
@@ -12,6 +14,7 @@
   const ROOT = document.documentElement;
   const CSS_ID = 'bt-jira-css';
   const PEEK_ID = 'bt-jira-peek';
+  const EDIT_ID = 'bt-jira-edit-description';
   // Fields that should read like text, not open an editor on click.
   const READ_ONLY = [
     '[data-testid="issue-field-summary.ui.issue-field-summary-inline-edit--container"]',
@@ -19,12 +22,19 @@
     '[data-vc="issue-table-main-container"]',
   ].join(',');
   const SIDEBAR_BTN = '[data-testid="page-layout.top-nav"] button';
+  const DESCRIPTION_LABEL = '[data-testid="issue.views.issue-base.common.description.label"]';
+  const DESCRIPTION = '[data-testid="issue.views.field.rich-text.description"]';
+  // Jira's invisible button over the description text (hidden by jira.css); clicking it opens the editor.
+  const DESCRIPTION_EDIT = 'button[aria-label^="Edit Description"]';
   const COMMENT_PLACEHOLDER = '[data-testid="canned-comments.common.ui.comment-text-area-placeholder.textarea"]';
   let mounted = false;
   let collapsedByUs = false;
   let observer = null;
   let commentOpens = [];
   let keepCommentFocus = false;
+  let editing = false;
+  // When the Edit button last opened the description editor (0: not since it closed).
+  let descriptionOpenedAt = 0;
 
   function isIssuePage() {
     if (/\/browse\/[A-Z][A-Z0-9_]+-\d+/.test(location.pathname)) return true;
@@ -36,9 +46,11 @@
   // and mousedown/mouseup pass through untouched, so selecting text, clearing a
   // selection and Jira's own selection tools keep working. Links still open.
   function blockEdit(event) {
-    if (!mounted) return;
+    if (!mounted || editing) return;
     const field = event.target.closest && event.target.closest(READ_ONLY);
     if (!field) return;
+    // the editor is open (via the Edit button): its toolbar, Save and Cancel must work
+    if (field.querySelector('[contenteditable="true"]')) return;
     if (event.target.closest('a[href]')) return;
     if (event.target.closest('[contenteditable="true"]')) return;
     if (event.type === 'keydown' && event.key !== 'Enter') return;
@@ -82,6 +94,8 @@
     if (!mounted) return;
     const btn = document.querySelector(COMMENT_PLACEHOLDER);
     if (!btn) return;
+    // Jira keeps one editor open: opening the comment box would close the description editor.
+    if (descriptionEditing()) return;
     // If Jira keeps closing it straight away, stop rather than flicker.
     const now = Date.now();
     commentOpens = commentOpens.filter((t) => now - t < 10000);
@@ -106,6 +120,56 @@
     setTimeout(settle, 250);
   }
 
+  // From the Edit button's click until Jira shows the read view again (Save or Cancel). Jira's own
+  // edit button only exists in the read view; the first seconds cover the editor still loading.
+  function descriptionEditing() {
+    if (!descriptionOpenedAt) return false;
+    if (Date.now() - descriptionOpenedAt < 3000) return true;
+    if (!document.querySelector(`${DESCRIPTION} ${DESCRIPTION_EDIT}`)) return true;
+    descriptionOpenedAt = 0;
+    return false;
+  }
+
+  // "Edit" next to the Description heading: presses Jira's own (hidden) edit button, which
+  // opens the same editor a click on the text opens without this theme. Hidden while it's open.
+  function syncEditButton() {
+    if (!mounted) return;
+    const label = document.querySelector(DESCRIPTION_LABEL);
+    const jiraEdit = document.querySelector(`${DESCRIPTION} ${DESCRIPTION_EDIT}`);
+    let btn = document.getElementById(EDIT_ID);
+    if (!label) {
+      btn?.remove();
+      return;
+    }
+    if (btn && label.contains(btn)) {
+      btn.hidden = !jiraEdit;
+      return;
+    }
+    if (jiraEdit) {
+      btn?.remove();
+      btn = document.createElement('button');
+      btn.id = EDIT_ID;
+      btn.type = 'button';
+      btn.textContent = 'Edit';
+      btn.title = 'Edit description';
+      // Keep focus where it is, so the editor Jira opens is not blurred (and closed) by it.
+      btn.addEventListener('mousedown', (event) => event.preventDefault());
+      btn.addEventListener('click', (event) => {
+        event.stopPropagation();
+        const target = document.querySelector(`${DESCRIPTION} ${DESCRIPTION_EDIT}`);
+        if (!target) return;
+        descriptionOpenedAt = Date.now();
+        editing = true;
+        try {
+          target.click();
+        } finally {
+          editing = false;
+        }
+      });
+      label.append(btn);
+    }
+  }
+
   function watchPage() {
     let queued = false;
     observer = new MutationObserver(() => {
@@ -114,6 +178,7 @@
       requestAnimationFrame(() => {
         queued = false;
         openCommentBox();
+        syncEditButton();
       });
     });
     observer.observe(document.body, { childList: true, subtree: true });
@@ -151,6 +216,7 @@
     collapseSidebar();
     if (!observer) watchPage();
     openCommentBox();
+    syncEditButton();
   }
 
   function unmount() {
@@ -162,12 +228,26 @@
     commentOpens = [];
     delete ROOT.dataset.btJira;
     delete ROOT.dataset.btShowRight;
-    for (const id of [CSS_ID, PEEK_ID]) document.getElementById(id)?.remove();
+    for (const id of [CSS_ID, PEEK_ID, EDIT_ID]) document.getElementById(id)?.remove();
   }
 
   for (const type of ['click', 'keydown']) {
     window.addEventListener(type, blockEdit, true);
   }
+
+  // A plain left click on a link to another issue opens it here. Something in Jira sends some of
+  // these clicks to a new tab; Cmd/Ctrl/Shift/middle clicks still open new tabs as the user asks.
+  window.addEventListener('click', (event) => {
+    if (!mounted || event.defaultPrevented || event.button !== 0) return;
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    const link = event.target.closest && event.target.closest('a[href]');
+    if (!link || link.target === '_blank' || link.closest('[contenteditable="true"]')) return;
+    const url = new URL(link.href, location.href);
+    if (url.origin !== location.origin || !/^\/browse\/[A-Z][A-Z0-9_]+-\d+/.test(url.pathname)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    location.assign(url.href);
+  }, true);
 
   // No drag to reorder rows in work item tables.
   window.addEventListener('dragstart', (event) => {
@@ -180,7 +260,7 @@
   BT.register({
     site: 'jira',
     label: 'Jira',
-    themes: [{ id: 'focus', label: 'Focus', hint: 'No side panes, read-only title and text' }],
+    themes: [{ id: 'focus', label: 'Focus', hint: 'No side panes, read-only title, description behind an Edit button' }],
     isActive: isIssuePage,
     mount,
     unmount,
